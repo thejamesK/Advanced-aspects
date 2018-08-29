@@ -27,6 +27,17 @@ public class AnimacjaObrazka extends JFrame
             }
         });
         
+        JButton deleteButton = (JButton)buttonPanel.add(new JButton("Delete"));
+        
+        deleteButton.addActionListener(new ActionListener() 
+        {
+            @Override
+            public void actionPerformed(ActionEvent ae) 
+            {
+                stopAnimation();
+            }
+        });
+        
         
         this.getContentPane().add(animationPanel);
         this.getContentPane().add(buttonPanel, BorderLayout.SOUTH);
@@ -37,13 +48,16 @@ public class AnimacjaObrazka extends JFrame
         animationPanel.addOwl();
     }
     
+    public void stopAnimation()
+    {
+        animationPanel.stop();
+    }
+    
     private JPanel buttonPanel = new JPanel();
     private AnimationPanel animationPanel = new AnimationPanel();
     public static void main(String[] args) 
     {
-        new AnimacjaObrazka().setVisible(true);
-        
-        
+        new AnimacjaObrazka().setVisible(true);               
     }
     
     class AnimationPanel extends JPanel
@@ -51,22 +65,15 @@ public class AnimacjaObrazka extends JFrame
         public void addOwl()
         {
             owlList.add(new Owl());
-            for(int i = 0; i < 2500; i++)
-            {
-                for(int j = 0; j < owlList.size(); j++)
-                {
-                    ((Owl)(owlList.get(j))).moveOwl(this);
-                    this.paint(this.getGraphics());
-                    try 
-                    {
-                        Thread.sleep(1);
-                    } 
-                    catch (InterruptedException ex) 
-                    {
-                        System.out.println(ex.getMessage());
-                    }
-                }
-            }
+            thread = new Thread(threadGroup, new OwlRunnable((Owl)owlList.get(owlList.size() - 1)));
+            thread.start();  
+            
+            threadGroup.list();
+        }
+        
+        public void stop() 
+        {
+            threadGroup.interrupt();
         }
         
         @Override
@@ -80,6 +87,42 @@ public class AnimacjaObrazka extends JFrame
             }
         }
         ArrayList owlList = new ArrayList();
+        JPanel tmpAnimationPanel = this;
+        Thread thread;
+        ThreadGroup threadGroup = new ThreadGroup("Owl Group");
+
+
+        public class OwlRunnable implements Runnable
+        {
+            public OwlRunnable(Owl owl)
+            {
+                this.owl = owl;
+            }
+            @Override
+            public void run() 
+            {
+                try
+                {   
+                    while (!Thread.currentThread().isInterrupted())
+                    {
+                        this.owl.moveOwl(tmpAnimationPanel);
+                        repaint();
+                                               
+                        Thread.sleep(1);
+                    }
+                }    
+                catch (InterruptedException ex) 
+                {
+                    System.out.println(ex.getMessage());
+                    owlList.clear();
+                    repaint();
+                }
+                
+            }
+            
+            Owl owl;
+            
+        }
     }
     
 }
