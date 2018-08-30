@@ -27,14 +27,25 @@ public class AnimacjaObrazka extends JFrame
             }
         });
         
-        JButton deleteButton = (JButton)buttonPanel.add(new JButton("Delete"));
+        JButton stopButton = (JButton)buttonPanel.add(new JButton("Stop"));
         
-        deleteButton.addActionListener(new ActionListener() 
+        stopButton.addActionListener(new ActionListener() 
         {
             @Override
             public void actionPerformed(ActionEvent ae) 
             {
                 stopAnimation();
+            }
+        });
+        
+        JButton addButton = (JButton)buttonPanel.add(new JButton("Add"));
+        
+        addButton.addActionListener(new ActionListener() 
+        {
+            @Override
+            public void actionPerformed(ActionEvent ae) 
+            {
+                addAnimation();
             }
         });
         
@@ -45,12 +56,17 @@ public class AnimacjaObrazka extends JFrame
     }
     public void startAnimation()
     {
-        animationPanel.addOwl();
+        animationPanel.startAnimation();
     }
     
     public void stopAnimation()
     {
         animationPanel.stop();
+    }
+    
+    public void addAnimation()
+    {
+        animationPanel.addOwl();
     }
     
     private JPanel buttonPanel = new JPanel();
@@ -62,6 +78,8 @@ public class AnimacjaObrazka extends JFrame
     
     class AnimationPanel extends JPanel
     {
+        private volatile boolean stopped = false; //delikatna zmienna 
+        private Object lock = new Object();
         public void addOwl()
         {
             owlList.add(new Owl());
@@ -73,8 +91,22 @@ public class AnimacjaObrazka extends JFrame
         
         public void stop() 
         {
-            threadGroup.interrupt();
+            stopped = true;
         }
+        
+        public void startAnimation() 
+        {
+            if(stopped)
+            {
+                stopped = false;
+                synchronized(lock)
+                {
+                    lock.notifyAll();
+                }
+            }
+        }
+        
+        
         
         @Override
         public void paintComponent(Graphics g)
@@ -101,22 +133,36 @@ public class AnimacjaObrazka extends JFrame
             @Override
             public void run() 
             {
-                try
-                {   
-                    while (!Thread.currentThread().isInterrupted())
-                    {
-                        this.owl.moveOwl(tmpAnimationPanel);
-                        repaint();
-                                               
-                        Thread.sleep(1);
-                    }
-                }    
-                catch (InterruptedException ex) 
+             
+                while (true)
                 {
-                    System.out.println(ex.getMessage());
-                    owlList.clear();
+                    synchronized(lock)
+                    {
+                        while(stopped)
+                        {
+                            try 
+                            {
+                                lock.wait();
+                            } catch (InterruptedException ex) 
+                            {
+                                ex.printStackTrace();
+                            }
+                        }
+                    }
+                    this.owl.moveOwl(tmpAnimationPanel);
                     repaint();
+
+                    try 
+                    {
+                        Thread.sleep(1);
+                    } 
+                    catch (InterruptedException ex) 
+                    {
+                        ex.printStackTrace();
+                    }
                 }
+                    
+            
                 
             }
             
