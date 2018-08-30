@@ -1,6 +1,9 @@
 package skrzynkabutelek;
 
 import java.util.ArrayList;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -12,8 +15,11 @@ public class Skrzynkabutelek
     {
         Crate crate = new Crate();
         
-        BottleMakingMachine machine1 = new BottleMakingMachine(crate);
-        CrateChangingMachine machine2 = new CrateChangingMachine(crate);
+        Lock lock = new ReentrantLock();
+        Condition waiting = lock.newCondition();
+        
+        BottleMakingMachine machine1 = new BottleMakingMachine(crate, lock, waiting);
+        CrateChangingMachine machine2 = new CrateChangingMachine(crate, lock, waiting);
         
         Thread production = new Thread(machine1, "Producent");
         Thread changer = new Thread(machine2, "Changer");
@@ -26,14 +32,18 @@ public class Skrzynkabutelek
 
 class BottleMakingMachine implements Runnable
 {
-    public BottleMakingMachine(Crate crate)
+    public BottleMakingMachine(Crate crate, Lock lock, Condition waiting)
     {
         this.crate = crate;
+        this.lock = lock;
+        this.waiting = waiting;
+                
     }
     @Override
     public void run() 
     {
-        synchronized(crate)
+        lock.lock();
+        try
         {
             System.out.println(Thread.currentThread().getName()+": I'm starting bottle production!");
             while(true)
@@ -43,7 +53,7 @@ class BottleMakingMachine implements Runnable
                     try 
                     {
                         System.out.println(Thread.currentThread().getName()+": We need to change a crate becaouse this one is full! :(");
-                        crate.wait();
+                        waiting.await();
                         System.out.println(Thread.currentThread().getName()+": I'm back to bottle production! :)");
                     } 
                     catch (InterruptedException ex) 
@@ -55,25 +65,34 @@ class BottleMakingMachine implements Runnable
                 System.out.println(Thread.currentThread().getName()+": I producted bottle nubmer "+(++i));
                 crate.addBottle(new Bottle());
                 
-                crate.notifyAll();
+                waiting.signalAll();
             }
         }
+        finally
+        {
+            lock.unlock();
+        }
+        
     }
-    
+    private Condition waiting;
+    private Lock lock;
     private Crate crate;
     private int i = 0;
 }
 
 class CrateChangingMachine implements Runnable
 {
-    public CrateChangingMachine(Crate crate)
+    public CrateChangingMachine(Crate crate, Lock lock, Condition waiting)
     {
         this.crate = crate;
+        this.lock = lock;
+        this.waiting = waiting;
     }
     @Override
     public void run() 
     {
-        synchronized(crate)
+        lock.lock();
+        try
         {
             System.out.println(Thread.currentThread().getName()+": I getting ready to change the crate!");
             while(true)
@@ -84,7 +103,7 @@ class CrateChangingMachine implements Runnable
                     try 
                     {
                         System.out.println(Thread.currentThread().getName()+": Crate was changed!");
-                        crate.wait();
+                        waiting.await();
                         System.out.println(Thread.currentThread().getName()+": I'm back to changing!");
                     } 
                     catch (InterruptedException ex) 
@@ -96,12 +115,17 @@ class CrateChangingMachine implements Runnable
                 crate.change();
                 crate.getTheNumberOfBottles();
                 
-                crate.notifyAll();
+                waiting.signalAll();
                 
             } 
         }
+        finally
+        {
+            lock.unlock();
+        }
     }
-    
+    private Condition waiting;
+    private Lock lock;
     private Crate crate;
 }
 
