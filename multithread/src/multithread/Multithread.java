@@ -1,5 +1,8 @@
 package multithread;
 
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
 public class Multithread 
 {
 
@@ -22,6 +25,18 @@ public class Multithread
         Thread watek4 = new Thread(new CounterRunnable(licznik, true), "Rosnie");
         
         watek3.start();
+        
+        try 
+        {
+            watek3.join();
+        } 
+        catch (InterruptedException ex) 
+        {
+            System.out.println(ex.getMessage());
+        }
+        System.out.println(Thread.currentThread().getName());
+        System.out.println("cos tu sie dzieje OD RAZU po skonczonym watku watek");
+        
         watek4.start();
     }
     
